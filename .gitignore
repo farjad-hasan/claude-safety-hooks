@@ -1,0 +1,72 @@
+# claude-safety-hooks / public repo .gitignore template
+# Copy this to <repo>/.gitignore and adjust as needed.
+
+# ── Secrets and credentials ──
+.secrets/
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore
+credentials
+credentials.*
+*credentials.json
+.credentials/
+auth.json
+.netrc
+
+# ── Cloud / provider configs ──
+.aws/
+.sfdx/
+.salesforce/
+
+# ── Editor / IDE ──
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ── OS junk ──
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Local Claude / agent state ──
+.claude/settings.local.json
+.claude/scheduled_tasks.lock
+.claude/worktrees/
+.claude/.tmp_*
+.claude/state.json
+claude-context.json
+data/state.json
+
+# ── Logs and tmp ──
+*.log
+.tmp/
+tmp/
+.tmp_*
+tmp-*
+
+# ── Build artifacts ──
+node_modules/
+dist/
+build/
+*.egg-info/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# ── Local working directories never to commit ──
+stage/
+working/
+scratch/
+
+# ── Things you might forget that leak local context ──
+*.transcript
+*-transcript.*
+meeting-*.md
+speaker-profiles/

@@ -1,0 +1,18 @@
+# Force LF line endings for shell scripts and config files.
+# Without this, Windows Git's autocrlf can rewrite shell scripts to CRLF,
+# which breaks shebangs on Linux/macOS (#!/usr/bin/env bash\r is not valid).
+
+*.sh        text eol=lf
+*.bash      text eol=lf
+install.sh  text eol=lf
+
+# Markdown, JSON, env files — also LF for consistency
+*.md        text eol=lf
+*.json      text eol=lf
+.env.example text eol=lf
+.gitignore  text eol=lf
+
+# Binary files (none yet, but defensive)
+*.png       binary
+*.jpg       binary
+*.gif       binary
