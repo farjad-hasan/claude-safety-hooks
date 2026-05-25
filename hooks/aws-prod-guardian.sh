@@ -49,14 +49,38 @@ CONFIG
 fi
 
 # ── Read the command ─────────────────────────────────────────────
+# Two input paths: CLAUDE_BASH_COMMAND env var or JSON on stdin.
+# Track HAD_INPUT so we can fail closed when input arrived but couldn't
+# be parsed — silent input loss is a fail-open vulnerability.
 CMD=""
+HAD_INPUT=false
 if [ -n "$CLAUDE_BASH_COMMAND" ]; then
     CMD="$CLAUDE_BASH_COMMAND"
+    HAD_INPUT=true
 else
     INPUT=$(cat 2>/dev/null)
     if [ -n "$INPUT" ]; then
+        HAD_INPUT=true
+        if ! command -v jq >/dev/null 2>&1; then
+            cat >&2 <<'JQMISSING'
+✗ AWS Guardian dependency missing: jq is required to parse tool input.
+  Install jq before using this hook:
+    macOS:   brew install jq
+    Linux:   apt install jq   (or your distro equivalent)
+    Windows: winget install jqlang.jq
+  Failing closed — no command will be allowed without jq.
+JQMISSING
+            exit 2
+        fi
         CMD=$(echo "$INPUT" | jq -r '.tool_input.command // empty' 2>/dev/null)
     fi
+fi
+
+# If we had input but couldn't extract a command, JSON was malformed →
+# fail closed. NEVER silently allow when the hook couldn't inspect.
+if [ "$HAD_INPUT" = true ] && [ -z "$CMD" ]; then
+    echo "✗ AWS Guardian: received input but could not extract a command. Failing closed." >&2
+    exit 2
 fi
 
 if [ -z "$CMD" ]; then
