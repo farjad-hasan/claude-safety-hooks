@@ -130,14 +130,21 @@ fi
 # auto-trust an unmapped account).
 
 account_label() {
-    case "$1" in
-        "$PROD_ACCOUNT_ID")    echo "Production" ;;
-        "$UAT_ACCOUNT_ID")     echo "UAT" ;;
-        "$DEV_ACCOUNT_ID")     echo "Dev" ;;
-        "$SANDBOX_ACCOUNT_ID") echo "Sandbox" ;;
-        "")                    echo "Unresolved — treated as PROD" ;;
-        *)                     echo "Unknown account — treated as PROD" ;;
-    esac
+    local acct="$1"
+    # Empty resolved account → unresolved. This check must come first;
+    # otherwise a case statement against empty $UAT_ACCOUNT_ID etc. would
+    # match the empty input and mislabel it (the v0.1.1 cosmetic bug).
+    if [ -z "$acct" ]; then
+        echo "Unresolved — treated as PROD"
+        return
+    fi
+    # Each comparison is guarded by `[ -n ... ]` so an unset env var
+    # cannot accidentally match a resolved account ID.
+    if [ -n "$PROD_ACCOUNT_ID" ]    && [ "$acct" = "$PROD_ACCOUNT_ID" ];    then echo "Production"; return; fi
+    if [ -n "$UAT_ACCOUNT_ID" ]     && [ "$acct" = "$UAT_ACCOUNT_ID" ];     then echo "UAT"; return; fi
+    if [ -n "$DEV_ACCOUNT_ID" ]     && [ "$acct" = "$DEV_ACCOUNT_ID" ];     then echo "Dev"; return; fi
+    if [ -n "$SANDBOX_ACCOUNT_ID" ] && [ "$acct" = "$SANDBOX_ACCOUNT_ID" ]; then echo "Sandbox"; return; fi
+    echo "Unknown account — treated as PROD"
 }
 
 # Detect profile from --profile flag in the command
@@ -339,6 +346,20 @@ if [ "$ALLOWED" = true ]; then
     exit 0
 fi
 
+# Show the SSO-refresh hint only when it's actually relevant:
+# a profile is set AND the account couldn't be resolved (the typical
+# signature of an expired SSO session). Without this guard, the hint
+# appeared in unrelated contexts (e.g. fresh installs without AWS
+# configured at all) and confused new users.
+SSO_HINT=""
+if [ -n "$CMD_PROFILE" ] && [ -z "$RESOLVED_ACCOUNT" ]; then
+    SSO_HINT="
+║                                                               ║
+║  Profile is set but account did not resolve — your SSO        ║
+║  session may have expired. Refresh with:                      ║
+║    aws sso login --profile $CMD_PROFILE                       ║"
+fi
+
 # ── BLOCKED ─────────────────────────────────────────────────────
 cat >&2 <<BLOCK
 ╔═══════════════════════════════════════════════════════════════╗
@@ -349,11 +370,7 @@ cat >&2 <<BLOCK
 ║                                                               ║
 ║  Account: ${RESOLVED_ACCOUNT:-(no account resolved)}
 ║  Status:  ${ACCOUNT_LABEL:-Production}
-║  Profile: ${CMD_PROFILE:-default}
-║                                                               ║
-║  If your profile is non-PROD and the account is Unresolved,
-║  your SSO session likely expired. Refresh with:
-║    aws sso login --profile ${CMD_PROFILE:-<name>}
+║  Profile: ${CMD_PROFILE:-default}${SSO_HINT}
 ║                                                               ║
 ║  Only whitelisted READ operations are allowed on PROD.        ║
 ║  Write/modify/delete operations are BLOCKED.                  ║
