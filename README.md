@@ -4,7 +4,7 @@
 
 ![License](https://img.shields.io/badge/License-MIT-yellow.svg)
 
-[![Version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fgithub.com%2Ffarjad-hasan%2Fclaude-safety-hooks%2Fraw%2Fmain%2FVERSION&query=%24&label=version)](https://github.com/farjad-hasan/claude-safety-hooks/blob/main/VERSION)
+[![Version](https://img.shields.io/badge/version-0.2.0--unreleased-orange)](https://github.com/farjad-hasan/claude-safety-hooks/blob/main/VERSION)
 
 [![Integrity Test](https://github.com/farjad-hasan/claude-safety-hooks/actions/workflows/test.yml/badge.svg)](https://github.com/farjad-hasan/claude-safety-hooks/actions/workflows/test.yml)
 
