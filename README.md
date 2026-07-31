@@ -2,7 +2,11 @@
 
 > Production safety hooks for [Claude Code](https://claude.com/claude-code). Blocks destructive commands against your real infrastructure behind a passkey gate.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+![License](https://img.shields.io/badge/License-MIT-yellow.svg)
+
+[![Version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fgithub.com%2Ffarjad-hasan%2Fclaude-safety-hooks%2Fraw%2Fmain%2FVERSION&query=%24&label=version)](https://github.com/farjad-hasan/claude-safety-hooks/blob/main/VERSION)
+
+[![Integrity Test](https://github.com/farjad-hasan/claude-safety-hooks/actions/workflows/test.yml/badge.svg)](https://github.com/farjad-hasan/claude-safety-hooks/actions/workflows/test.yml)
 
 ![demo](demo/demo.gif)
 
@@ -167,7 +171,18 @@ Each hook is a single bash script. No daemons, no agents, no network calls. The 
 
 ---
 
-## Extending
+## Testing & Integrity
+All guardians are checked via continuous integration on every push:
+
+- `Shellcheck` enforces bash syntax correctness and prevents common pitfalls (e.g., unquoted variables).
+- Bash syntax validation (`sh -n`) ensures hooks won't fail silently during deployment.
+- Logic tests verify that the **fail-closed** baseline is maintained: blocked actions never execute without a valid, freshly typed passkey.
+
+See [VERSION](VERSION) for the current release number and [docs/CHANGELOG.md](docs/CHANGELOG.md) for operational changes. A detailed threat model and known failure modes are documented in [docs/THREAT-MODEL.md](docs/THREAT-MODEL.md).
+
+---
+
+### Extending
 
 Add a fourth guardian — say, for `kubectl` against a prod cluster:
 

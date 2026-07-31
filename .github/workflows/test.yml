@@ -1,0 +1,32 @@
+name: "Claude Safety Hooks - Integrity Test"
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run ShellCheck
+        uses: reviewdog/action-shellcheck@v1
+        with:
+          shellcheck_flags: -s bash
+
+      - name: Validate hook syntax (aws)
+        run: sh -n hooks/aws-prod-guardian.sh
+
+      - name: Validate hook syntax (db)
+        run: sh -n hooks/db-prod-guardian.sh
+
+      - name: Validate hook syntax (salesforce)
+        run: sh -n hooks/sf-prod-guardian.sh
+
+      - name: Run fail-closed logic tests
+        run: bash tests/test-fail-closed.sh
