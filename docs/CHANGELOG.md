@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-07-31
+
 ### Added
 
 - CI integrity checks for every push and pull request.
@@ -21,4 +23,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - README now exposes integrity, version, testing, and threat-model documentation.
 - Hook, installer, and test scripts are marked executable in Git.
 
-[Unreleased]: https://github.com/farjad-hasan/claude-safety-hooks/compare/main...HEAD
+[Unreleased]: https://github.com/farjad-hasan/claude-safety-hooks/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/farjad-hasan/claude-safety-hooks/releases/tag/v0.2.0
