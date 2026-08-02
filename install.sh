@@ -4,9 +4,11 @@
 # ═══════════════════════════════════════════════════════════════════
 #
 # What it does:
-#   1. Copies the three guardian hooks into .claude/hooks/
-#   2. Registers them as PreToolUse hooks in .claude/settings.json
-#      (merges with any existing config — does not clobber)
+#   1. Copies the guardian hooks into .claude/hooks/ (and the memory
+#      validator into .claude/scripts/)
+#   2. Registers the three prod guardians as PreToolUse hooks and the
+#      memory-invariants guardian as a PostToolUse hook in
+#      .claude/settings.json (merges with existing config — no clobber)
 #   3. Makes hooks executable
 #
 # Usage:
@@ -48,7 +50,7 @@ if [ ! -d "$SRC_HOOKS_DIR" ]; then
     exit 1
 fi
 
-HOOKS=(sf-prod-guardian.sh db-prod-guardian.sh aws-prod-guardian.sh)
+HOOKS=(sf-prod-guardian.sh db-prod-guardian.sh aws-prod-guardian.sh memory-invariants-guardian.sh)
 
 for h in "${HOOKS[@]}"; do
     if [ ! -f "$SRC_HOOKS_DIR/$h" ]; then
@@ -93,6 +95,12 @@ for h in "${HOOKS[@]}"; do
     echo "✓ Installed $h"
 done
 
+# The memory guardian resolves its validator at ../scripts/ relative to
+# the hook location, i.e. .claude/scripts/.
+mkdir -p "$TARGET_BASE/scripts"
+cp "$SCRIPT_DIR/scripts/check_memory_invariants.py" "$TARGET_BASE/scripts/"
+echo "✓ Installed check_memory_invariants.py"
+
 # ── Build the hook registration JSON ────────────────────────────────
 # Claude Code's PreToolUse config groups hooks by matcher. We add one
 # entry per guardian, all matching the Bash tool.
@@ -104,6 +112,12 @@ HOOK_ENTRIES=$(jq -n \
         {matcher: "Bash", hooks: [{type: "command", command: $sf}]},
         {matcher: "Bash", hooks: [{type: "command", command: $db}]},
         {matcher: "Bash", hooks: [{type: "command", command: $aws}]}
+    ]')
+
+POST_ENTRIES=$(jq -n \
+    --arg mem "$HOOK_PATH_PREFIX/memory-invariants-guardian.sh" \
+    '[
+        {matcher: "Edit|Write", hooks: [{type: "command", command: $mem}]}
     ]')
 
 # ── Merge into settings.json ────────────────────────────────────────
@@ -118,7 +132,7 @@ if [ -f "$SETTINGS_FILE" ]; then
     # Filter out any prior registrations of OUR hooks (idempotency),
     # then append the fresh entries.
     TMP=$(mktemp)
-    jq --argjson new "$HOOK_ENTRIES" '
+    jq --argjson new "$HOOK_ENTRIES" --argjson post "$POST_ENTRIES" '
         .hooks //= {} |
         .hooks.PreToolUse //= [] |
         .hooks.PreToolUse |= (
@@ -126,29 +140,37 @@ if [ -f "$SETTINGS_FILE" ]; then
                 .hooks // [] |
                 any(.command | test("(sf|db|aws)-prod-guardian\\.sh$")) | not
             )) + $new
+        ) |
+        .hooks.PostToolUse //= [] |
+        .hooks.PostToolUse |= (
+            map(select(
+                .hooks // [] |
+                any(.command | test("memory-invariants-guardian\\.sh$")) | not
+            )) + $post
         )
     ' "$SETTINGS_FILE" > "$TMP"
 
     mv "$TMP" "$SETTINGS_FILE"
     echo "✓ Updated $SETTINGS_FILE (merged with existing config)"
 else
-    jq -n --argjson hooks "$HOOK_ENTRIES" \
-        '{hooks: {PreToolUse: $hooks}}' > "$SETTINGS_FILE"
+    jq -n --argjson hooks "$HOOK_ENTRIES" --argjson post "$POST_ENTRIES" \
+        '{hooks: {PreToolUse: $hooks, PostToolUse: $post}}' > "$SETTINGS_FILE"
     echo "✓ Created $SETTINGS_FILE"
 fi
 
 # ── Verify ──────────────────────────────────────────────────────────
 REGISTERED=$(jq '[.hooks.PreToolUse[]?.hooks[]?.command] | map(select(test("prod-guardian"))) | length' "$SETTINGS_FILE")
+POST_REGISTERED=$(jq '[.hooks.PostToolUse[]?.hooks[]?.command] | map(select(test("memory-invariants-guardian"))) | length' "$SETTINGS_FILE")
 
-if [ "$REGISTERED" -lt 3 ]; then
-    echo "✗ Verification failed: expected 3 guardian hooks registered, found $REGISTERED" >&2
+if [ "$REGISTERED" -lt 3 ] || [ "$POST_REGISTERED" -lt 1 ]; then
+    echo "✗ Verification failed: expected 3 PreToolUse + 1 PostToolUse guardians, found $REGISTERED + $POST_REGISTERED" >&2
     exit 1
 fi
 
 cat <<DONE
 
 ═══════════════════════════════════════════════════════════════════
-✓ Installed: 3 PreToolUse hooks registered in $SETTINGS_FILE
+✓ Installed: 3 PreToolUse + 1 PostToolUse hooks registered in $SETTINGS_FILE
 
 NEXT STEPS
 
