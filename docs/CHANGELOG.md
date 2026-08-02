@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-08-02
+
+### Added
+
+- `memory-invariants-guardian.sh` — the first **PostToolUse** guardian: fires
+  after Edit/Write on memory index files (`MEMORY.md`, `INDEX.md`) and
+  surfaces violations to Claude for self-correction.
+- `scripts/check_memory_invariants.py` — generic validator: dead relative
+  markdown links, dead `[[wikilinks]]`, and opt-in stale-count checks via
+  `<!-- invariant-count: <glob> -->` annotations.
+- `tests/test-memory-guardian.sh` — 10 test cases covering validator checks
+  and the hook's fail-closed stdin contract; wired into CI.
+
+### Changed
+
+- `install.sh` now installs the validator to `.claude/scripts/` and registers
+  the PostToolUse hook block (idempotent re-runs preserved).
+- README documents the new guardian class.
+
 ## [0.2.0] - 2026-07-31
 
 ### Added
@@ -23,5 +42,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - README now exposes integrity, version, testing, and threat-model documentation.
 - Hook, installer, and test scripts are marked executable in Git.
 
-[Unreleased]: https://github.com/farjad-hasan/claude-safety-hooks/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/farjad-hasan/claude-safety-hooks/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/farjad-hasan/claude-safety-hooks/releases/tag/v0.3.0
 [0.2.0]: https://github.com/farjad-hasan/claude-safety-hooks/releases/tag/v0.2.0

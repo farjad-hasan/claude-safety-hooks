@@ -4,7 +4,7 @@
 
 ![License](https://img.shields.io/badge/License-MIT-yellow.svg)
 
-[![Version](https://img.shields.io/badge/version-0.2.0--unreleased-orange)](https://github.com/farjad-hasan/claude-safety-hooks/blob/main/VERSION)
+[![Version](https://img.shields.io/badge/version-0.3.0-green)](https://github.com/farjad-hasan/claude-safety-hooks/blob/main/VERSION)
 
 [![Integrity Test](https://github.com/farjad-hasan/claude-safety-hooks/actions/workflows/test.yml/badge.svg)](https://github.com/farjad-hasan/claude-safety-hooks/actions/workflows/test.yml)
 
@@ -24,7 +24,7 @@ There's no undo. Region wiped, customers offline, RPO blown. The agent didn't "g
 
 The default Claude Code safety model relies on you reviewing every command. That works at low intensity. It does not survive a long autonomous session where 200+ commands fly by.
 
-**This repo is the second line of defense.** Three pre-tool-use hooks that intercept Bash commands *before* they execute, classify them as read vs. write, and block writes against production unless the human types a passkey.
+**This repo is the second line of defense.** Three pre-tool-use hooks that intercept Bash commands *before* they execute, classify them as read vs. write, and block writes against production unless the human types a passkey — plus a post-tool-use guardian (v0.3.0) that validates what Claude wrote to memory index files.
 
 ---
 
@@ -36,7 +36,7 @@ cd claude-safety-hooks
 ./install.sh
 ```
 
-The installer copies the three guardians into `.claude/hooks/` and registers them in your project's `.claude/settings.json` as `PreToolUse` hooks for the Bash tool.
+The installer copies all four guardians into `.claude/hooks/` (and the memory validator into `.claude/scripts/`) and registers them in your project's `.claude/settings.json` — the three prod guardians as `PreToolUse` hooks for Bash, the memory guardian as a `PostToolUse` hook for Edit/Write.
 
 Then configure — copy `.env.example` to `.env` and fill in your account IDs and passkey hashes. See [Configuration](#configuration) below.
 
@@ -53,6 +53,37 @@ Each hook covers a different blast radius. Defense postures escalate with the co
 | `aws-prod-guardian.sh` | **Whitelist reads only** | `describe-*`, `list-*`, `get-*`, `s3 ls/cp` to local | everything else (anything not in the whitelist) |
 
 Why the escalation? Salesforce write damage is usually recoverable from sandbox refresh. DB damage is recoverable from backup. **AWS damage with AdministratorAccess can wipe a region in seconds with no undo.** The whitelist for AWS isn't paranoia — it's the only defense matching the threat model.
+
+---
+
+## The PostToolUse guardian (v0.3.0)
+
+The three prod guardians check what Claude is *about to run*. `memory-invariants-guardian.sh` is a different class: it checks what Claude *wrote*. It fires after `Edit`/`Write` on memory index files (`MEMORY.md`, `INDEX.md`) and validates:
+
+- **Dead relative links** — `[text](file.md)` pointing to a file that doesn't exist
+- **Dead wikilinks** — `[[name]]` with no matching `name.md` in or under the index's directory
+- **Stale counts (opt-in)** — a line annotated with `<!-- invariant-count: <glob> -->` must contain exactly one number, and it must equal the number of files matching the glob:
+
+  ```markdown
+  Tracking 43 lessons. <!-- invariant-count: lessons/*.md -->
+  ```
+
+PostToolUse hooks are advisory: the write has already happened, so exit 2 can't block it — instead the violation surfaces to Claude, which fixes the index in its next response. Wiring (the installer does this for you):
+
+```json
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [{ "type": "command", "command": ".claude/hooks/memory-invariants-guardian.sh" }]
+      }
+    ]
+  }
+}
+```
+
+The validator lives in `scripts/check_memory_invariants.py` (installed to `.claude/scripts/`); the hook follows the same fail-closed input conventions as the prod guardians.
 
 ---
 
