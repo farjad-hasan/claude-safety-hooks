@@ -1,0 +1,19 @@
+{
+  "name": "claude-safety-hooks",
+  "description": "Production safety hooks for Claude Code. Blocks destructive AWS, database, and Salesforce commands against real infrastructure behind a passkey gate.",
+  "version": "0.4.0",
+  "author": {
+    "name": "Farjad Hasan"
+  },
+  "homepage": "https://github.com/farjad-hasan/claude-safety-hooks",
+  "repository": "https://github.com/farjad-hasan/claude-safety-hooks",
+  "license": "MIT",
+  "keywords": [
+    "safety",
+    "guardrails",
+    "hooks",
+    "aws",
+    "production",
+    "security"
+  ]
+}
