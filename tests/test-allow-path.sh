@@ -106,6 +106,28 @@ report "wrong passkey still blocks"     2 \
     "$(run_hook 'AWS_PROD_PASSKEY=wrong-key AWS_PROD_CONFIRMED=true aws s3 rb s3://prod-data --force')"
 
 echo ""
+echo "── Unconfigured guardians must not block unrelated commands ──"
+# An unconfigured install must never brick the Bash tool. Each guardian is
+# invoked with NO env configured against commands it does not govern; all must
+# exit 0. The commands each guardian DOES govern must still fail closed.
+unconfigured() {
+    local hook="$1" cmd="$2"
+    local payload
+    payload=$(jq -n --arg c "$cmd" '{tool_input:{command:$c}}')
+    printf '%s' "$payload" | env -u AWS_PROD_PASSKEY_HASH -u PROD_ACCOUNT_ID \
+        -u DB_PROD_PASSKEY_HASH -u SF_PROD_PASSKEY_HASH \
+        "$REPO_ROOT/hooks/$hook" >/dev/null 2>&1
+    echo $?
+}
+for hook in aws-prod-guardian.sh db-prod-guardian.sh sf-prod-guardian.sh; do
+    report "unconfigured $hook allows 'ls -la'"    0 "$(unconfigured "$hook" 'ls -la')"
+    report "unconfigured $hook allows 'git status'" 0 "$(unconfigured "$hook" 'git status')"
+done
+report "unconfigured aws guardian blocks aws"  2 "$(unconfigured aws-prod-guardian.sh 'aws s3 ls')"
+report "unconfigured db guardian blocks psql"  2 "$(unconfigured db-prod-guardian.sh 'psql -c "SELECT 1"')"
+report "unconfigured sf guardian blocks sf"    2 "$(unconfigured sf-prod-guardian.sh 'sf project deploy start')"
+
+echo ""
 echo "═══════════════════════════════════════════════════════════════"
 printf "Result: \033[32m%d passed\033[0m" "$PASS"
 if [ $FAIL -gt 0 ]; then

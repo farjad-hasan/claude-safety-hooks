@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-08-07
+
+### Fixed
+
+- **An unconfigured guardian blocked every Bash command.** The
+  misconfiguration check ran *before* command detection, so on an install with
+  no env vars set, `ls`, `git status`, `echo` — everything — exited 2. With the
+  manual installer users at least saw the "configure now" output; with
+  one-command plugin install this would brick Claude Code's Bash tool on
+  install. The check now runs *after* command detection in all three prod
+  guardians: unrelated commands pass, and the commands each guardian actually
+  governs still fail closed until configured.
+- Added 9 regression cases to `tests/test-allow-path.sh` covering exactly this:
+  each unconfigured guardian must allow `ls -la` and `git status`, and must
+  still block its own domain.
+
 ## [0.4.0] - 2026-08-07
 
 ### Added
@@ -94,7 +110,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - README now exposes integrity, version, testing, and threat-model documentation.
 - Hook, installer, and test scripts are marked executable in Git.
 
-[Unreleased]: https://github.com/farjad-hasan/claude-safety-hooks/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/farjad-hasan/claude-safety-hooks/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/farjad-hasan/claude-safety-hooks/releases/tag/v0.4.1
 [0.4.0]: https://github.com/farjad-hasan/claude-safety-hooks/releases/tag/v0.4.0
 [0.3.1]: https://github.com/farjad-hasan/claude-safety-hooks/releases/tag/v0.3.1
 [0.3.0]: https://github.com/farjad-hasan/claude-safety-hooks/releases/tag/v0.3.0
