@@ -4,7 +4,7 @@
 
 ![License](https://img.shields.io/badge/License-MIT-yellow.svg)
 
-[![Version](https://img.shields.io/badge/version-0.3.0-green)](https://github.com/farjad-hasan/claude-safety-hooks/blob/main/VERSION)
+[![Version](https://img.shields.io/badge/version-0.3.1-green)](https://github.com/farjad-hasan/claude-safety-hooks/blob/main/VERSION)
 
 [![Integrity Test](https://github.com/farjad-hasan/claude-safety-hooks/actions/workflows/test.yml/badge.svg)](https://github.com/farjad-hasan/claude-safety-hooks/actions/workflows/test.yml)
 
@@ -132,7 +132,11 @@ DB_NAME=
 Generate a passkey hash:
 
 ```bash
-echo -n "<your-chosen-passkey>" | sha256sum | awk '{print $1}'
+# Linux
+printf '%s' "<your-chosen-passkey>" | sha256sum | awk '{print $1}'
+
+# macOS (does not ship sha256sum)
+printf '%s' "<your-chosen-passkey>" | shasum -a 256 | awk '{print $1}'
 ```
 
 Pick a passkey that's memorable to *you* but not guessable. You can reuse the same passkey across all three guardians, or use different ones per service.
@@ -208,6 +212,12 @@ All guardians are checked via continuous integration on every push:
 - `Shellcheck` enforces bash syntax correctness and prevents common pitfalls (e.g., unquoted variables).
 - Bash syntax validation (`sh -n`) ensures hooks won't fail silently during deployment.
 - Logic tests verify that the **fail-closed** baseline is maintained: blocked actions never execute without a valid, freshly typed passkey.
+- Allow-path tests verify the inverse — that whitelisted reads are actually *permitted* and the passkey gate *opens*. A guardian that blocks everything is broken too, and only this suite catches it.
+
+**Platforms:** tested on Linux and macOS in CI on every push. The hooks use
+only POSIX-portable shell — no GNU-only regex, and SHA-256 works via either
+`sha256sum` (Linux) or `shasum` (macOS). Windows is supported via WSL or Git
+Bash but is not covered by CI.
 
 See [VERSION](VERSION) for the current release number and [docs/CHANGELOG.md](docs/CHANGELOG.md) for operational changes. A detailed threat model and known failure modes are documented in [docs/THREAT-MODEL.md](docs/THREAT-MODEL.md).
 

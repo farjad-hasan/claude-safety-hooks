@@ -20,7 +20,8 @@
 #   SF_PROD_USERNAME      e.g. you@yourcompany.com (without sandbox suffix)
 #   SF_PROD_ORG_ID        18-char SF org ID, starts with 00D
 #   SF_PROD_PASSKEY_HASH  SHA-256 hex of your chosen production passkey
-#                         (echo -n "<passkey>" | sha256sum)
+#                         Linux: printf '%s' "<passkey>" | sha256sum
+#                         macOS: printf '%s' "<passkey>" | shasum -a 256
 #
 # Production identifiers (any match = production):
 #   --target-org production | -o production
