@@ -9,6 +9,36 @@ permissions:
 
 jobs:
   test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install jq (macOS)
+        if: runner.os == 'macOS'
+        run: brew install jq || true
+
+      - name: Validate hook syntax
+        run: |
+          bash -n hooks/aws-prod-guardian.sh
+          bash -n hooks/db-prod-guardian.sh
+          bash -n hooks/sf-prod-guardian.sh
+          bash -n hooks/memory-invariants-guardian.sh
+
+      - name: Run fail-closed logic tests
+        run: bash tests/test-fail-closed.sh
+
+      - name: Run allow-path logic tests
+        run: bash tests/test-allow-path.sh
+
+      - name: Run memory guardian tests
+        run: bash tests/test-memory-guardian.sh
+
+  shellcheck:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -18,15 +48,3 @@ jobs:
         uses: reviewdog/action-shellcheck@v1
         with:
           shellcheck_flags: -s bash
-
-      - name: Validate hook syntax (aws)
-        run: bash -n hooks/aws-prod-guardian.sh
-
-      - name: Validate hook syntax (db)
-        run: bash -n hooks/db-prod-guardian.sh
-
-      - name: Validate hook syntax (salesforce)
-        run: bash -n hooks/sf-prod-guardian.sh
-
-      - name: Run fail-closed logic tests
-        run: bash tests/test-fail-closed.sh
