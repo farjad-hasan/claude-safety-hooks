@@ -34,17 +34,9 @@ SF_PROD_USERNAME="${SF_PROD_USERNAME:-}"
 SF_PROD_ORG_ID="${SF_PROD_ORG_ID:-}"
 SF_PROD_PASSKEY_HASH="${SF_PROD_PASSKEY_HASH:-}"
 
-if [ -z "$SF_PROD_PASSKEY_HASH" ]; then
-    cat >&2 <<'CONFIG'
-✗ SF Guardian misconfigured: SF_PROD_PASSKEY_HASH is empty.
-  Compute the hash once:
-    printf '%s' "<your-chosen-passkey>" | sha256sum        # Linux
-    printf '%s' "<your-chosen-passkey>" | shasum -a 256    # macOS
-  Export the hex digest as SF_PROD_PASSKEY_HASH (e.g. in your shell rc).
-  See .env.example in the repo for all required variables.
-CONFIG
-    exit 2
-fi
+# NOTE: the misconfiguration check deliberately runs AFTER command detection,
+# further down. Checking it here would exit 2 for EVERY Bash command on an
+# unconfigured install, making Claude Code unusable rather than merely guarded.
 
 # ── Read the command ─────────────────────────────────────────────────
 # Two input paths: CLAUDE_BASH_COMMAND env var (set by some Claude Code
@@ -99,6 +91,22 @@ fi
 # ── Quick exit: not an sf/sfdx command ─────────────────────────────
 if ! echo "$NORM_CMD" | grep -qE '(^|\s|;|&&|\|\||")(sf|sfdx)\s'; then
     exit 0
+fi
+
+# ── Required environment (checked only once we know this IS an sf command) ──
+# Ordering matters: an unconfigured guardian must not block unrelated commands.
+# It still fails closed for the commands it actually governs.
+if [ -z "$SF_PROD_PASSKEY_HASH" ]; then
+    cat >&2 <<'CONFIG'
+✗ SF Guardian misconfigured: SF_PROD_PASSKEY_HASH is empty.
+  Compute the hash once:
+    printf '%s' "<your-chosen-passkey>" | sha256sum        # Linux
+    printf '%s' "<your-chosen-passkey>" | shasum -a 256    # macOS
+  Export the hex digest as SF_PROD_PASSKEY_HASH (e.g. in your shell rc).
+  See .env.example in the repo for all required variables.
+  Failing closed — this Salesforce command is blocked until configured.
+CONFIG
+    exit 2
 fi
 
 # ── Detect production targeting ────────────────────────────────────

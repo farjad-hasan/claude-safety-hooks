@@ -36,19 +36,11 @@ UAT_ACCOUNT_ID="${UAT_ACCOUNT_ID:-}"
 DEV_ACCOUNT_ID="${DEV_ACCOUNT_ID:-}"
 SANDBOX_ACCOUNT_ID="${SANDBOX_ACCOUNT_ID:-}"
 
-if [ -z "$PROD_ACCOUNT_ID" ] || [ -z "$AWS_PROD_PASSKEY_HASH" ]; then
-    cat >&2 <<'CONFIG'
-✗ AWS Guardian misconfigured: PROD_ACCOUNT_ID and/or
-  AWS_PROD_PASSKEY_HASH is empty.
-  Set both before using the guardian:
-    PROD_ACCOUNT_ID=123456789012
-    AWS_PROD_PASSKEY_HASH=$(printf '%s' "<your-passkey>" | sha256sum | awk '{print $1}')
-    # macOS (no sha256sum):
-    AWS_PROD_PASSKEY_HASH=$(printf '%s' "<your-passkey>" | shasum -a 256 | awk '{print $1}')
-  See .env.example in the repo for all required variables.
-CONFIG
-    exit 2
-fi
+# NOTE: the misconfiguration check deliberately runs AFTER command detection,
+# further down. Checking it here would exit 2 for EVERY Bash command — `ls`,
+# `git status`, everything — on an unconfigured install, making Claude Code
+# unusable rather than merely guarded. See the check below the aws-command
+# detection.
 
 # ── Read the command ─────────────────────────────────────────────
 # Two input paths: CLAUDE_BASH_COMMAND env var or JSON on stdin.
@@ -92,6 +84,24 @@ fi
 # ── Quick exit: not an AWS command ───────────────────────────────
 if ! echo "$CMD" | grep -qE '(^|\s|;|&&|\|\||")aws\s'; then
     exit 0
+fi
+
+# ── Required environment (checked only once we know this IS an aws command) ──
+# Ordering matters: an unconfigured guardian must not block unrelated commands.
+# It still fails closed for the commands it actually governs.
+if [ -z "$PROD_ACCOUNT_ID" ] || [ -z "$AWS_PROD_PASSKEY_HASH" ]; then
+    cat >&2 <<'CONFIG'
+✗ AWS Guardian misconfigured: PROD_ACCOUNT_ID and/or
+  AWS_PROD_PASSKEY_HASH is empty.
+  Set both before running aws commands:
+    PROD_ACCOUNT_ID=123456789012
+    AWS_PROD_PASSKEY_HASH=$(printf '%s' "<your-passkey>" | sha256sum | awk '{print $1}')
+    # macOS (no sha256sum):
+    AWS_PROD_PASSKEY_HASH=$(printf '%s' "<your-passkey>" | shasum -a 256 | awk '{print $1}')
+  See .env.example in the repo for all required variables.
+  Failing closed — this aws command is blocked until configured.
+CONFIG
+    exit 2
 fi
 
 # ── Portable SHA-256 ────────────────────────────────────────────

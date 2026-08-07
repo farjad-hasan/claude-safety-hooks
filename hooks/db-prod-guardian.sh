@@ -28,17 +28,9 @@
 DB_PROD_PASSKEY_HASH="${DB_PROD_PASSKEY_HASH:-}"
 DB_NAME="${DB_NAME:-<prod>}"
 
-if [ -z "$DB_PROD_PASSKEY_HASH" ]; then
-    cat >&2 <<'CONFIG'
-✗ DB Guardian misconfigured: DB_PROD_PASSKEY_HASH is empty.
-  Compute the hash once:
-    printf '%s' "<your-chosen-passkey>" | sha256sum        # Linux
-    printf '%s' "<your-chosen-passkey>" | shasum -a 256    # macOS
-  Export the hex digest as DB_PROD_PASSKEY_HASH.
-  See .env.example in the repo.
-CONFIG
-    exit 2
-fi
+# NOTE: the misconfiguration check deliberately runs AFTER command detection,
+# further down. Checking it here would exit 2 for EVERY Bash command on an
+# unconfigured install, making Claude Code unusable rather than merely guarded.
 
 # ── Read the command ─────────────────────────────────────────────
 # Two input paths: CLAUDE_BASH_COMMAND env var or JSON on stdin.
@@ -100,6 +92,22 @@ fi
 
 if [ "$IS_DB_CMD" = false ]; then
     exit 0
+fi
+
+# ── Required environment (checked only once we know this IS a db command) ──
+# Ordering matters: an unconfigured guardian must not block unrelated commands.
+# It still fails closed for the commands it actually governs.
+if [ -z "$DB_PROD_PASSKEY_HASH" ]; then
+    cat >&2 <<'CONFIG'
+✗ DB Guardian misconfigured: DB_PROD_PASSKEY_HASH is empty.
+  Compute the hash once:
+    printf '%s' "<your-chosen-passkey>" | sha256sum        # Linux
+    printf '%s' "<your-chosen-passkey>" | shasum -a 256    # macOS
+  Export the hex digest as DB_PROD_PASSKEY_HASH.
+  See .env.example in the repo.
+  Failing closed — this database command is blocked until configured.
+CONFIG
+    exit 2
 fi
 
 # ── Portable SHA-256 ────────────────────────────────────────────
