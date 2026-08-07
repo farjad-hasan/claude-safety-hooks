@@ -42,7 +42,9 @@ if [ -z "$PROD_ACCOUNT_ID" ] || [ -z "$AWS_PROD_PASSKEY_HASH" ]; then
   AWS_PROD_PASSKEY_HASH is empty.
   Set both before using the guardian:
     PROD_ACCOUNT_ID=123456789012
-    AWS_PROD_PASSKEY_HASH=$(echo -n "<your-passkey>" | sha256sum | awk '{print $1}')
+    AWS_PROD_PASSKEY_HASH=$(printf '%s' "<your-passkey>" | sha256sum | awk '{print $1}')
+    # macOS (no sha256sum):
+    AWS_PROD_PASSKEY_HASH=$(printf '%s' "<your-passkey>" | shasum -a 256 | awk '{print $1}')
   See .env.example in the repo for all required variables.
 CONFIG
     exit 2
@@ -92,6 +94,21 @@ if ! echo "$CMD" | grep -qE '(^|\s|;|&&|\|\||")aws\s'; then
     exit 0
 fi
 
+# ── Portable SHA-256 ────────────────────────────────────────────
+# GNU coreutils ships sha256sum; macOS ships shasum. Assuming sha256sum
+# meant the passkey could never be verified on a Mac — the gate could not
+# be opened at all, which gets a guardian deleted rather than respected.
+# printf is used over `echo -n`, which is not portable across shells.
+sha256_hex() {
+    if command -v sha256sum >/dev/null 2>&1; then
+        printf '%s' "$1" | sha256sum | awk '{print $1}'
+    elif command -v shasum >/dev/null 2>&1; then
+        printf '%s' "$1" | shasum -a 256 | awk '{print $1}'
+    else
+        return 1
+    fi
+}
+
 # ── Check for explicit bypass with passkey ──────────────────────
 EXPECTED_HASH="$AWS_PROD_PASSKEY_HASH"
 
@@ -99,7 +116,10 @@ if echo "$CMD" | grep -q 'AWS_PROD_CONFIRMED=true'; then
     PASSKEY=$(echo "$CMD" | sed -n 's/.*AWS_PROD_PASSKEY=\([^ ;][^ ;]*\).*/\1/p')
 
     if [ -n "$PASSKEY" ]; then
-        ACTUAL_HASH=$(echo -n "$PASSKEY" | sha256sum | awk '{print $1}')
+        if ! ACTUAL_HASH=$(sha256_hex "$PASSKEY"); then
+            echo "✗ AWS Guardian: no sha256sum or shasum available; cannot verify passkey. Failing closed." >&2
+            exit 2
+        fi
         if [ "$ACTUAL_HASH" = "$EXPECTED_HASH" ]; then
             exit 0
         fi

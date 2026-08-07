@@ -32,7 +32,8 @@ if [ -z "$DB_PROD_PASSKEY_HASH" ]; then
     cat >&2 <<'CONFIG'
 ✗ DB Guardian misconfigured: DB_PROD_PASSKEY_HASH is empty.
   Compute the hash once:
-    echo -n "<your-chosen-passkey>" | sha256sum
+    printf '%s' "<your-chosen-passkey>" | sha256sum        # Linux
+    printf '%s' "<your-chosen-passkey>" | shasum -a 256    # macOS
   Export the hex digest as DB_PROD_PASSKEY_HASH.
   See .env.example in the repo.
 CONFIG
@@ -101,6 +102,21 @@ if [ "$IS_DB_CMD" = false ]; then
     exit 0
 fi
 
+# ── Portable SHA-256 ────────────────────────────────────────────
+# GNU coreutils ships sha256sum; macOS ships shasum. Assuming sha256sum
+# meant the passkey could never be verified on a Mac — the gate could not
+# be opened at all, which gets a guardian deleted rather than respected.
+# printf is used over `echo -n`, which is not portable across shells.
+sha256_hex() {
+    if command -v sha256sum >/dev/null 2>&1; then
+        printf '%s' "$1" | sha256sum | awk '{print $1}'
+    elif command -v shasum >/dev/null 2>&1; then
+        printf '%s' "$1" | shasum -a 256 | awk '{print $1}'
+    else
+        return 1
+    fi
+}
+
 # ── Check for explicit bypass with passkey ──────────────────────
 EXPECTED_HASH="$DB_PROD_PASSKEY_HASH"
 
@@ -108,7 +124,10 @@ if echo "$CMD" | grep -q 'DB_PROD_CONFIRMED=true'; then
     PASSKEY=$(echo "$CMD" | sed -n 's/.*DB_PROD_PASSKEY=\([^ ;][^ ;]*\).*/\1/p')
 
     if [ -n "$PASSKEY" ]; then
-        ACTUAL_HASH=$(echo -n "$PASSKEY" | sha256sum | awk '{print $1}')
+        if ! ACTUAL_HASH=$(sha256_hex "$PASSKEY"); then
+            echo "✗ DB Guardian: no sha256sum or shasum available; cannot verify passkey. Failing closed." >&2
+            exit 2
+        fi
         if [ "$ACTUAL_HASH" = "$EXPECTED_HASH" ]; then
             exit 0
         fi

@@ -37,7 +37,8 @@ if [ -z "$SF_PROD_PASSKEY_HASH" ]; then
     cat >&2 <<'CONFIG'
 ✗ SF Guardian misconfigured: SF_PROD_PASSKEY_HASH is empty.
   Compute the hash once:
-    echo -n "<your-chosen-passkey>" | sha256sum
+    printf '%s' "<your-chosen-passkey>" | sha256sum        # Linux
+    printf '%s' "<your-chosen-passkey>" | shasum -a 256    # macOS
   Export the hex digest as SF_PROD_PASSKEY_HASH (e.g. in your shell rc).
   See .env.example in the repo for all required variables.
 CONFIG
@@ -173,6 +174,21 @@ if [ "$IS_READ" = true ]; then
     exit 0
 fi
 
+# ── Portable SHA-256 ────────────────────────────────────────────
+# GNU coreutils ships sha256sum; macOS ships shasum. Assuming sha256sum
+# meant the passkey could never be verified on a Mac — the gate could not
+# be opened at all, which gets a guardian deleted rather than respected.
+# printf is used over `echo -n`, which is not portable across shells.
+sha256_hex() {
+    if command -v sha256sum >/dev/null 2>&1; then
+        printf '%s' "$1" | sha256sum | awk '{print $1}'
+    elif command -v shasum >/dev/null 2>&1; then
+        printf '%s' "$1" | shasum -a 256 | awk '{print $1}'
+    else
+        return 1
+    fi
+}
+
 # ── Production WRITE: check for explicit user confirmation + passkey ──
 EXPECTED_HASH="$SF_PROD_PASSKEY_HASH"
 
@@ -180,7 +196,10 @@ if echo "$NORM_CMD" | grep -q 'SF_PROD_CONFIRMED=true'; then
     PASSKEY=$(echo "$NORM_CMD" | sed -n 's/.*SF_PROD_PASSKEY=\([^ ;][^ ;]*\).*/\1/p')
 
     if [ -n "$PASSKEY" ]; then
-        ACTUAL_HASH=$(echo -n "$PASSKEY" | sha256sum | awk '{print $1}')
+        if ! ACTUAL_HASH=$(sha256_hex "$PASSKEY"); then
+            echo "✗ SF Guardian: no sha256sum or shasum available; cannot verify passkey. Failing closed." >&2
+            exit 2
+        fi
         if [ "$ACTUAL_HASH" = "$EXPECTED_HASH" ]; then
             exit 0
         fi
