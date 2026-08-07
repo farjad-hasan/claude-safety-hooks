@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-08-07
+
+### Added
+
+- **Claude Code plugin packaging.** `.claude-plugin/plugin.json` and
+  `hooks/hooks.json` register all four guardians automatically on install;
+  `.claude-plugin/marketplace.json` makes the repo installable with
+  `/plugin marketplace add farjad-hasan/claude-safety-hooks`.
+
+### Fixed
+
+- **`memory-invariants-guardian.sh` was committed non-executable** (mode
+  `100644`). `install.sh` masked this by running `chmod +x`, but a plugin
+  install has no installer — the hook would never have run. `tests/test-memory-guardian.sh`
+  had the same problem.
+- **`install.sh` printed the Linux-only hash recipe.** Its NEXT STEPS told every
+  user to run `echo -n … | sha256sum`, which on macOS yields an empty hash and a
+  passkey gate that cannot open — the same class of bug v0.3.1 fixed elsewhere,
+  missed here because the installer is not covered by CI.
+
+### Changed
+
+- The memory guardian resolves its validator via `${CLAUDE_PLUGIN_ROOT}` when
+  running as a plugin, falling back to the `install.sh` relative path
+  otherwise — removing a fragile path assumption. Both branches are verified.
+- README documents plugin install alongside the manual installer, including an
+  explicit note that plugins execute arbitrary code and are trusted wholesale.
+
 ## [0.3.1] - 2026-08-07
 
 ### Fixed
@@ -66,7 +94,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - README now exposes integrity, version, testing, and threat-model documentation.
 - Hook, installer, and test scripts are marked executable in Git.
 
-[Unreleased]: https://github.com/farjad-hasan/claude-safety-hooks/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/farjad-hasan/claude-safety-hooks/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/farjad-hasan/claude-safety-hooks/releases/tag/v0.4.0
 [0.3.1]: https://github.com/farjad-hasan/claude-safety-hooks/releases/tag/v0.3.1
 [0.3.0]: https://github.com/farjad-hasan/claude-safety-hooks/releases/tag/v0.3.0
 [0.2.0]: https://github.com/farjad-hasan/claude-safety-hooks/releases/tag/v0.2.0

@@ -4,7 +4,7 @@
 
 ![License](https://img.shields.io/badge/License-MIT-yellow.svg)
 
-[![Version](https://img.shields.io/badge/version-0.3.1-green)](https://github.com/farjad-hasan/claude-safety-hooks/blob/main/VERSION)
+[![Version](https://img.shields.io/badge/version-0.4.0-green)](https://github.com/farjad-hasan/claude-safety-hooks/blob/main/VERSION)
 
 [![Integrity Test](https://github.com/farjad-hasan/claude-safety-hooks/actions/workflows/test.yml/badge.svg)](https://github.com/farjad-hasan/claude-safety-hooks/actions/workflows/test.yml)
 
@@ -30,6 +30,19 @@ The default Claude Code safety model relies on you reviewing every command. That
 
 ## Install
 
+### As a plugin (recommended)
+
+```
+/plugin marketplace add farjad-hasan/claude-safety-hooks
+/plugin install claude-safety-hooks@farjad-hasan
+```
+
+All four guardians register automatically — the three `PreToolUse` prod guardians and the `PostToolUse` memory guardian. Nothing is written to your `settings.json`.
+
+Then configure the environment (see [Configuration](#configuration)). **The hooks fail closed until configured**: without the passkey hashes set, every matching command is blocked rather than allowed.
+
+### Manual install
+
 ```bash
 git clone https://github.com/farjad-hasan/claude-safety-hooks.git
 cd claude-safety-hooks
@@ -39,6 +52,13 @@ cd claude-safety-hooks
 The installer copies all four guardians into `.claude/hooks/` (and the memory validator into `.claude/scripts/`) and registers them in your project's `.claude/settings.json` — the three prod guardians as `PreToolUse` hooks for Bash, the memory guardian as a `PostToolUse` hook for Edit/Write.
 
 Then configure — copy `.env.example` to `.env` and fill in your account IDs and passkey hashes. See [Configuration](#configuration) below.
+
+> **A note on trust.** Plugins execute arbitrary code, and Claude Code has no
+> per-hook approval step — installing this plugin trusts every hook in it.
+> That is exactly why these hooks stay small, dependency-light, and readable:
+> four bash files, no daemons, no network calls, no persistent state. Read
+> them before you install them. That advice applies to every plugin you
+> install, not just this one.
 
 ---
 

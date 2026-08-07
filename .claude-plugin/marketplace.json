@@ -1,0 +1,18 @@
+{
+  "name": "farjad-hasan",
+  "description": "Production-hardened tooling for Claude Code",
+  "owner": {
+    "name": "Farjad Hasan"
+  },
+  "plugins": [
+    {
+      "name": "claude-safety-hooks",
+      "description": "Production safety hooks for Claude Code. Blocks destructive AWS, database, and Salesforce commands against real infrastructure behind a passkey gate.",
+      "version": "0.4.0",
+      "source": "./",
+      "author": {
+        "name": "Farjad Hasan"
+      }
+    }
+  ]
+}
