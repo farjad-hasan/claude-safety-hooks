@@ -187,15 +187,32 @@ ACCOUNT_LABEL=$(account_label "$RESOLVED_ACCOUNT")
 # Collapse multiline commands (backslash-newline continuations) into a single line
 CMD_FLAT=$(echo "$CMD" | tr '\n' ' ' | sed 's/\\[[:space:]]*/ /g; s/  */ /g')
 
-# Remove everything before the first 'aws' command
-AWS_PART=$(echo "$CMD_FLAT" | sed 's/.*\baws\s/aws /')
+# Extract service + action by walking tokens, NOT by regex.
+#
+# The previous sed approach used \b and \s, which are GNU extensions. On BSD
+# sed (stock macOS) `aws\s+` parses as "aw" + one-or-more "s", so the prefix
+# was never stripped and SERVICE became the literal string "aws" — matching
+# no whitelist entry and blocking every read on macOS. awk token comparison
+# has no regex-dialect surface at all.
+#
+# Walk: find the first token that is `aws` (or a path ending in /aws), then
+# skip global flags in both `--flag value` and `--flag=value` forms, then
+# take the next two tokens as service and action.
+AWS_TOKENS=$(echo "$CMD_FLAT" | awk '{
+    for (i = 1; i <= NF; i++) {
+        if ($i == "aws" || $i ~ /\/aws$/) {
+            j = i + 1
+            while (j <= NF && substr($j, 1, 2) == "--") {
+                if (index($j, "=") > 0) { j += 1 } else { j += 2 }
+            }
+            print $j, $(j + 1)
+            exit
+        }
+    }
+}')
 
-# Skip global flags (--region, --profile, --output, --query, --no-cli-pager, etc.)
-AWS_STRIPPED=$(echo "$AWS_PART" | sed -E 's/aws\s+(--[a-z-]+\s+[^ ]+\s+)*//; s/aws\s+//')
-
-# Extract service and action
-SERVICE=$(echo "$AWS_STRIPPED" | awk '{print $1}')
-ACTION=$(echo "$AWS_STRIPPED" | awk '{print $2}')
+SERVICE=$(echo "$AWS_TOKENS" | awk '{print $1}')
+ACTION=$(echo "$AWS_TOKENS" | awk '{print $2}')
 
 # ── WHITELIST: Allowed read-only operations ─────────────────────
 
