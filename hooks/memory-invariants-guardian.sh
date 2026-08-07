@@ -38,4 +38,17 @@ if [ -z "$PY" ]; then
     exit 2
 fi
 
-exec "$PY" "$SCRIPT_DIR/../scripts/check_memory_invariants.py" "$FILE_PATH"
+# Under a plugin install, CLAUDE_PLUGIN_ROOT is authoritative. Under the
+# install.sh layout, fall back to the path relative to this script.
+if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ] && [ -f "$CLAUDE_PLUGIN_ROOT/scripts/check_memory_invariants.py" ]; then
+    VALIDATOR="$CLAUDE_PLUGIN_ROOT/scripts/check_memory_invariants.py"
+else
+    VALIDATOR="$SCRIPT_DIR/../scripts/check_memory_invariants.py"
+fi
+
+if [ ! -f "$VALIDATOR" ]; then
+    echo "memory-invariants-guardian: validator not found at $VALIDATOR; failing closed" >&2
+    exit 2
+fi
+
+exec "$PY" "$VALIDATOR" "$FILE_PATH"

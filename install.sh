@@ -176,7 +176,8 @@ NEXT STEPS
 
   1. Copy .env.example to .env and fill in your account IDs and
      passkey hashes. Generate a hash with:
-         echo -n "<your-passkey>" | sha256sum | awk '{print \$1}'
+         Linux: printf '%s' "<your-passkey>" | sha256sum | awk '{print \$1}'
+         macOS: printf '%s' "<your-passkey>" | shasum -a 256 | awk '{print \$1}'
 
   2. Source .env before starting Claude Code:
          set -a; source .env; set +a
